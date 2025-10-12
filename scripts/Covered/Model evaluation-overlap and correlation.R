@@ -210,6 +210,8 @@ category_colors <- c(
 )
 
 # Create pics
+source("functions/comparison_plotting.R") 
+
 # NHANES 
 p1 <- create_comparison_plot(plot_data_obesity_nhanes, "correlation", "Correlation", c(-1, 1), show_legend = FALSE)
 p2 <- create_comparison_plot(plot_data_obesity_nhanes, "overlap", "Overlap (%)", c(0, 100), show_legend = FALSE)

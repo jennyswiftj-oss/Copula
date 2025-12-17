@@ -64,8 +64,8 @@ overlap_sub <- calc_dependency(
 )
 
 # Save results with descriptive names
-save(overlap_full, file = "clean_data/overlap_nhanes_full_normal.Rdata")  
-save(overlap_sub, file = "clean_data/overlap_nhanes_sub_normal.Rdata")
+save(overlap_full_normal, file = "clean_data/overlap_nhanes_full_normal.Rdata")  
+save(overlap_sub_normal, file = "clean_data/overlap_nhanes_sub_normal.Rdata")
 
 # Repeat for morbid obesity and MIMIC datasets
 
@@ -83,10 +83,10 @@ load("clean_data/overlap_nhanes_sub_severe.Rdata")
 
 # Combine NHANES data
 combined_data_nhanes <- rbind(
-  overlap_full_normal %>% mutate(obesity_group = "Obesity", model = "full copula"),
-  overlap_sub_normal %>% mutate(obesity_group = "Obesity", model = "subgroup copula"),
-  overlap_full_severe %>% mutate(obesity_group = "Morbid Obesity", model = "full copula"),
-  overlap_sub_severe %>% mutate(obesity_group = "Morbid Obesity", model = "subgroup copula")
+  overlap_obesity_full_normal %>% mutate(obesity_group = "Obesity", model = "full copula"),
+  overlap_obesity_sub_normal %>% mutate(obesity_group = "Obesity", model = "subgroup copula"),
+  overlap_obesity_full_severe %>% mutate(obesity_group = "Morbid Obesity", model = "full copula"),
+  overlap_obesity_sub_severe %>% mutate(obesity_group = "Morbid Obesity", model = "subgroup copula")
 )
 
 # For MIMIC, combine in same way
@@ -127,11 +127,13 @@ calculate_relative_diff <- function(data, subgroup_level) {
 }
 
 # Check data
-check_normal_nhanes <- calculate_relative_error(combined_data_nhanes, "Obesity")
-check_severe_nhanes <- calculate_relative_error(combined_data_nhanes, "Morbid Obesity")
-
 diff_normal_nhanes <- calculate_relative_diff(combined_data_nhanes, "Obesity")
 diff_severe_nhanes <- calculate_relative_diff(combined_data_nhanes, "Morbid Obesity")
+
+# Check data
+diff_normal_mimic <- calculate_relative_diff(combined_data_mimic, "Obesity")
+diff_severe_mimic <- calculate_relative_diff(combined_data_mimic, "Morbid Obesity")
+
 
 cat("\n=== NHANES | Obesity ===\n")
 print(check_normal_nhanes$dist)
@@ -164,7 +166,7 @@ selected_pairs_severe_nhanes <- diff_severe_nhanes %>%
   pull(var_pair) %>% 
   unique()
 
-selected_pairs_obesity_mimic <- diff_obesity_mimic %>%
+selected_pairs_normal_mimic <- diff_normal_mimic %>%
   group_by(statistic) %>% 
   slice_max(relative_diff, n = N_PAIRS/2) %>% 
   ungroup() %>%
@@ -189,9 +191,9 @@ plot_data_severe_nhanes <- combined_data_nhanes %>%
   left_join(diff_severe_nhanes %>% select(var_pair, statistic, relative_diff, diff_category),
             by = c("var_pair", "statistic"))
 
-plot_data_obesity_mimic <- combined_data_mimic %>%
-  filter(obesity_group == "Obesity", var_pair %in% selected_pairs_obesity_mimic) %>%
-  left_join(diff_obesity_mimic %>% select(var_pair, statistic, relative_diff, diff_category),
+plot_data_normal_mimic <- combined_data_mimic %>%
+  filter(obesity_group == "Obesity", var_pair %in% selected_pairs_normal_mimic) %>%
+  left_join(diff_normal_mimic %>% select(var_pair, statistic, relative_diff, diff_category),
             by = c("var_pair", "statistic"))
 
 plot_data_severe_mimic <- combined_data_mimic %>%
@@ -213,29 +215,34 @@ category_colors <- c(
 source("functions/comparison_plotting.R") 
 
 # NHANES 
-p1 <- create_comparison_plot(plot_data_obesity_nhanes, "correlation", "Correlation", c(-1, 1), show_legend = FALSE)
-p2 <- create_comparison_plot(plot_data_obesity_nhanes, "overlap", "Overlap (%)", c(0, 100), show_legend = FALSE)
+p1 <- create_comparison_plot(plot_data_normal_nhanes, "correlation", "Correlation", c(-1, 1), show_legend = FALSE)
+p2 <- create_comparison_plot(plot_data_normal_nhanes, "overlap", "Overlap (%)", c(0, 100), show_legend = TRUE)
 p3 <- create_comparison_plot(plot_data_severe_nhanes, "correlation", "Correlation", c(-1, 1), show_legend = FALSE)
 p4 <- create_comparison_plot(plot_data_severe_nhanes, "overlap", "Overlap (%)", c(0, 100), show_legend = FALSE)
 
 # MIMIC
-p5 <- create_comparison_plot(plot_data_obesity_mimic, "correlation", "Correlation",  c(-1, 1), show_legend = TRUE)
-p6 <- create_comparison_plot(plot_data_obesity_mimic, "overlap", "Overlap (%)", c(0, 100) , show_legend = TRUE)
+p5 <- create_comparison_plot(plot_data_normal_mimic, "correlation", "Correlation",  c(-1, 1), show_legend = TRUE)
+p6 <- create_comparison_plot(plot_data_normal_mimic, "overlap", "Overlap (%)", c(0, 100) , show_legend = TRUE)
 p7 <- create_comparison_plot(plot_data_severe_mimic,  "correlation", "Correlation",  c(-1, 1), show_legend = FALSE)
 p8 <- create_comparison_plot(plot_data_severe_mimic,  "overlap", "Overlap (%)", c(0, 100) , show_legend = FALSE)
 
 # Adjust pics
-remove_y <- theme(axis.title.y = element_blank(),
-                  axis.text.y  = element_blank(),
-                  axis.ticks.y = element_blank(),
-                  plot.margin  = margin(4, 2, 4, 2))
+p2 <- p2 + theme(plot.margin = margin(5, 2, 5, 5))  
+p6 <- p6 + theme(plot.margin = margin(5, 2, 5, 5))  
 
-p3 <- p3 + remove_y; p4 <- p4 + remove_y
-p5 <- p5 + remove_y; p6 <- p6 + remove_y
-p7 <- p7 + remove_y; p8 <- p8 + remove_y
 
-p1 <- p1 + theme(plot.margin = margin(4, 2, 4, 2))
-p2 <- p2 + theme(plot.margin = margin(4, 2, 4, 2))
+p4 <- p4 + theme(
+  axis.title.y = element_blank(),
+  axis.text.y = element_blank(),
+  axis.ticks.y = element_blank(),
+  plot.margin = margin(5, 5, 5, 2)
+)
+p8 <- p8 + theme(
+  axis.title.y = element_blank(),
+  axis.text.y = element_blank(),
+  axis.ticks.y = element_blank(),
+  plot.margin = margin(5, 5, 5, 2)
+)
 
 col_title <- function(txt) {
   ggplot() +
@@ -244,26 +251,29 @@ col_title <- function(txt) {
     theme(plot.margin = margin(0, 0, 6, 0))
 }
 
-t1 <- col_title("Obesity (NHANES)")
-t2 <- col_title("Morbid Obesity (NHANES)")
-t3 <- col_title("Obesity (MIMIC)")
-t4 <- col_title("Morbid Obesity (MIMIC)")
+t1 <- col_title("NHANES - Obesity")
+t2 <- col_title("NHANES - Morbid Obesity")
+t3 <- col_title("MIMIC - Obesity")
+t4 <- col_title("MIMIC - Morbid Obesity")
 
-# Final plot
-final_plot <-(t1 | t2 | t3 | t4) /(p1 | p3 | p5 | p7) /(p2 | p4 | p6 | p8) +
-  plot_layout(widths = c(1, 1, 1, 1),
-              heights = c(0.10, 1, 1),
-              guides = "collect") &
-  theme(
-    legend.position = "top",
-    legend.direction = "horizontal",
-    legend.box = "horizontal",
-    legend.title = element_text(size = 9, face = "bold"),
-    legend.text = element_text(size = 9),
-    plot.margin = margin(0, 0, 0, 0)
+final_plot <- (t1 | t2) / (p2 | p4) / (t3 | t4) / (p6 | p8) +
+  plot_layout(
+    heights = c(0.08, 1, 0.08, 1),
+    guides = "collect"
+  ) +
+  plot_annotation(
+    theme = theme(
+      legend.position = "top",
+      legend.justification = "center",
+      legend.direction = "horizontal",
+      legend.box = "horizontal",
+      legend.title = element_text(size = 9, face = "bold"),
+      legend.text = element_text(size = 9),
+      legend.margin = margin(5, 0, 10, 0)
+    )
   )
 
 final_plot
 
-ggsave("plot_nhanes_mimic.tiff", 
-       final_plot, width = 18, height = 10, dpi = 300, compression = "lzw")
+ggsave("final_plot.tiff", 
+       final_plot, width = 12, height = 10, dpi = 300, compression = "lzw")
